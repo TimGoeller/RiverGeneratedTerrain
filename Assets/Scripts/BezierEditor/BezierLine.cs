@@ -15,7 +15,7 @@ public class BezierLine
         }
         set
         {
-            if (start != value)
+            if(start != value)
             {
                 value = PreprocessPoint(value);
                 Vector3 movementDelta = value - start;
@@ -35,7 +35,7 @@ public class BezierLine
         }
         set
         {
-            if (end != value)
+            if(end != value)
             {
                 value = PreprocessPoint(value);
                 Vector3 movementDelta = value - end;
@@ -55,7 +55,7 @@ public class BezierLine
         }
         set
         {
-            if (startHandle != value)
+            if(startHandle != value)
             {
                 startHandle = PreprocessPoint(value);
                 if (previousLine != null)
@@ -72,7 +72,7 @@ public class BezierLine
         }
         set
         {
-            if (endHandle != value)
+            if(endHandle != value)
             {
                 endHandle = PreprocessPoint(value);
                 if (nextLine != null)

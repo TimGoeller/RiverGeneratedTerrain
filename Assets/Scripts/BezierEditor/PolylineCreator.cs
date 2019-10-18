@@ -1,6 +1,9 @@
 ﻿using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.IO;
+using System.Runtime.Serialization.Formatters.Binary;
+using UnityEditor;
 using UnityEngine;
 
 [Serializable]
@@ -9,6 +12,7 @@ public class PolylineCreator : MonoBehaviour
     public BezierLine start;
     public bool closed;
     public bool drawLine = true;
+    public int exportResolution = 5;
 
     public void AddLine(Vector3 endPoint)
     {
@@ -71,7 +75,7 @@ public class PolylineCreator : MonoBehaviour
         closed = true;
     }
 
-    public List<Vector3> GetPolyline(int resolution)
+    public void ExportAsPolyline()
     {
         List<Vector3> points = new List<Vector3>();
 
@@ -79,9 +83,10 @@ public class PolylineCreator : MonoBehaviour
 
         do
         {
-            for (int i = 0; i < resolution; i++)
+            for (int i = 0; i < exportResolution; i++)
             {
-                float step = ((float)i / resolution);
+                float step = ((float)i / exportResolution);
+                Debug.Log(step);
                 Vector3 pointA = Vector3.Lerp(current.Start, current.StartHandle, step);
                 Vector3 pointB = Vector3.Lerp(current.StartHandle, current.EndHandle, step);
                 Vector3 pointC = Vector3.Lerp(current.EndHandle, current.End, step);
@@ -97,7 +102,10 @@ public class PolylineCreator : MonoBehaviour
         }
         while (current != start);
 
-        return points;
+        Polyline polyline = ScriptableObject.CreateInstance<Polyline>();
+        polyline.nodes = points;
+
+        AssetDatabase.CreateAsset(polyline, "Assets/MyPolyline.asset");
     }
 
 }

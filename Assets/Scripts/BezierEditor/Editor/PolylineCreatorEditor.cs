@@ -21,6 +21,11 @@ public class PolylineCreatorEditor : Editor
             polylineCreator.CreateStart();
         }
 
+        if (GUILayout.Button("Export polyline"))
+        {
+            polylineCreator.ExportAsPolyline();
+        }
+
         polylineCreator.drawLine = EditorGUILayout.Toggle("Draw", polylineCreator.drawLine);
     }
 
@@ -35,8 +40,10 @@ public class PolylineCreatorEditor : Editor
             Draw();
     }
 
-    private void Draw() { 
-    
+    private void Draw()
+    {
+        //throw new NotImplementedException();
+
         BezierLine current = polylineCreator.start;
         do
         {

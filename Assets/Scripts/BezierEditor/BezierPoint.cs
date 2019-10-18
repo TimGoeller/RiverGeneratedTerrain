@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class BezierPoint : MonoBehaviour
+public class BezierPoint
 {
     public Vector3 position = Vector3.zero;
 

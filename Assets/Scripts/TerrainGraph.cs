@@ -3,69 +3,97 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 
-[RequireComponent(typeof(PolylineCreator))]
 public class TerrainGraph : MonoBehaviour
 {
-    public int importResolution;
     public int initialCandiateNodeCount = 3;
     public OutlineNode start;
+    [HideInInspector]
+    public LinkedList<OutlineNode> outlineNodes = new LinkedList<OutlineNode>();
+    public List<OutlineNode> candidateNodes = new List<OutlineNode>();
+    public Polyline polyline;
 
-    public void ImportPolyline()
+    public void UpdateOutline()
     {
-        List<Vector3> polylineVec = GetComponent<PolylineCreator>().GetPolyline(5);
+        outlineNodes = new LinkedList<OutlineNode>();
 
-        OutlineNode lastNode = null;
-        start = null;
-
-        foreach (Vector3 node in polylineVec)
+        foreach (Vector3 nodePosition in polyline.nodes)
         {
-            OutlineNode newNode = new OutlineNode(node);
-
-            if (start == null)
-            {
-                start = newNode;
-            }
-
-            if (lastNode != null)
-            {
-                newNode.SetPreviousNode(lastNode);
-            }
-            lastNode = newNode;
+            outlineNodes.AddLast(new OutlineNode(nodePosition));
         }
-        start.SetPreviousNode(lastNode);
 
         CalculateConcavity();
+
+        for (int i = 0; i < initialCandiateNodeCount; i++)
+        {
+            candidateNodes.Add(outlineNodes.OrderByDescending(node => node.concavity + node.distanceToNextCandidateNode).First());
+            RecalculateDistancesToCandidateNodes();
+        }     
+    }
+
+    public void RecalculateDistancesToCandidateNodes()
+    {
+        List<float> distances = new List<float>();
+        foreach (OutlineNode nodeToCalculate in outlineNodes)
+        {
+            distances.Add(outlineNodes.Where(node => candidateNodes.Contains(node)).Min(node => (nodeToCalculate.position - node.position).magnitude));
+        }
+        distances = NormalizeList(distances);
+
+        int num = 0;
+        foreach (OutlineNode node in outlineNodes)
+        {
+            node.distanceToNextCandidateNode = distances[num];
+            num++;
+        }
     }
 
     public void CalculateConcavity()
     {
         List<float> innerAngles = new List<float>();
         List<float> outerAngles = new List<float>();
-        foreach (OutlineNode node in GetOutlineEnumerator())
+
+        for (LinkedListNode<OutlineNode> it = outlineNodes.First; it != null; it = it.Next)
         {
-            float innerAngle = Vector3.Angle(node.previousNode.position - node.position, node.nextNode.position - node.position);
-            if (!IsVectorTripletOrientationClockwise(node.previousNode.position, node.position, node.nextNode.position))
+            float innerAngle = Vector3.Angle(PreviousNode(it).Value.position - it.Value.position, NextNode(it).Value.position - it.Value.position);
+            if (!IsVectorTripletOrientationClockwise(PreviousNode(it).Value.position, it.Value.position, NextNode(it).Value.position))
             {
                 innerAngle = (180 - innerAngle) + 180;
             }
             innerAngles.Add(innerAngle);
 
-            float outerAngle = Vector3.Angle(node.previousNode.previousNode.position - node.position, node.nextNode.nextNode.position - node.position);
-            if (!IsVectorTripletOrientationClockwise(node.previousNode.previousNode.position, node.position, node.nextNode.nextNode.position))
+            float outerAngle = Vector3.Angle(PreviousNode(PreviousNode(it)).Value.position - it.Value.position, NextNode(NextNode(it)).Value.position - it.Value.position);
+            if (!IsVectorTripletOrientationClockwise(PreviousNode(PreviousNode(it)).Value.position, it.Value.position, NextNode(NextNode(it)).Value.position))
             {
                 outerAngle = (180 - outerAngle) + 180;
             }
             outerAngles.Add(outerAngle);
         }
-        innerAngles = NormalizeList(innerAngles);
-        outerAngles = NormalizeList(outerAngles);
+
+        innerAngles = NormalizeList(innerAngles).ConvertAll(angle => 1 - angle);
+        outerAngles = NormalizeList(outerAngles).ConvertAll(angle => 1 - angle);
 
         int num = 0;
-        foreach (OutlineNode node in GetOutlineEnumerator())
+        foreach (OutlineNode node in outlineNodes)
         {
             node.concavity = innerAngles[num] + outerAngles[num] * 0.5f;
             num++;
         }
+    }
+
+    LinkedListNode<OutlineNode> NextNode(LinkedListNode<OutlineNode> node)
+    {
+        if (node.Next == null)
+            return outlineNodes.First;
+        else
+            return node.Next;
+    }
+
+    LinkedListNode<OutlineNode> PreviousNode(LinkedListNode<OutlineNode> node)
+    {
+        if (node.Previous == null)
+            return outlineNodes.Last;
+        else
+            return node.Previous;
     }
 
     public List<float> NormalizeList(List<float> listToNormalize)
@@ -87,16 +115,6 @@ public class TerrainGraph : MonoBehaviour
         }).ToList();
     }
 
-    public IEnumerable GetOutlineEnumerator()
-    {
-        OutlineNode current = start;
-        do
-        {
-            yield return current;
-            current = current.nextNode;
-        } while (current != start);        
-    }
-
     public bool IsVectorTripletOrientationClockwise(Vector3 v1, Vector3 v2, Vector3 v3)
     {
         float val = (v2.z - v1.z) * (v3.x - v2.x) -
@@ -109,20 +127,12 @@ public class TerrainGraph : MonoBehaviour
     {
         public Vector3 position;
         public float concavity;
-        public OutlineNode previousNode;
-        public OutlineNode nextNode;
+        public float distanceToNextCandidateNode;
 
         public OutlineNode(Vector3 position)
         {
             this.position = position;
         }
-
-        public void SetPreviousNode(OutlineNode previous)
-        {
-            previousNode = previous;
-            previous.nextNode = this;
-        }
-
     }
 }
 
